@@ -1,5 +1,5 @@
 package com.exploring.restassured;
 
 public class OauthTokenResponse {
-    public String accessToken;
+    public String access_token;
 }

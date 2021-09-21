@@ -2,13 +2,20 @@ package com.exploring.restassured;
 
 import com.google.gson.Gson;
 import io.restassured.path.json.JsonPath;
+import org.apache.http.HttpRequest;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -17,8 +24,6 @@ import static io.restassured.RestAssured.when;
 import static io.restassured.http.ContentType.JSON;
 import static io.restassured.matcher.RestAssuredMatchers.equalToPath;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
-import static java.net.http.HttpRequest.BodyPublishers;
-import static java.net.http.HttpResponse.BodyHandlers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -42,8 +47,8 @@ public class AppTest {
 
     @Test
     public void shouldRetrieveTenTodos() {
-        var expectedIds = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-        var expectedTitles = Arrays.asList(
+        List<Integer> expectedIds = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        List<String> expectedTitles = Arrays.asList(
                 "delectus aut autem",
                 "quis ut nam facilis et officia qui",
                 "fugiat veniam minus",
@@ -76,7 +81,7 @@ public class AppTest {
 
     @Test
     public void shouldRetrieveTenTodosAsObjects() {
-        var expectedTodos = Arrays.asList(
+        List<Todo> expectedTodos = Arrays.asList(
                 new Todo(1, 1, "delectus aut autem", false),
                 new Todo(1, 2, "quis ut nam facilis et officia qui", false),
                 new Todo(1, 3, "fugiat veniam minus", false),
@@ -111,33 +116,34 @@ public class AppTest {
     }
 
     private String getOauthToken() throws IOException, InterruptedException {
-        var properties = getProperties("test.properties");
-        var oauthTokenEndpoint = properties.getProperty("oauth_token_endpoint");
+        Properties properties = getProperties("test.properties");
+        String oauthTokenEndpoint = properties.getProperty("oauth_token_endpoint");
 
-        var clientId = properties.getProperty("client_id");
-        var clientSecret = properties.getProperty("client_secret");
+        String clientId = properties.getProperty("client_id");
+        String clientSecret = properties.getProperty("client_secret");
 
-        var httpClient = HttpClient.newHttpClient();
-        var request = HttpRequest.newBuilder()
-                .headers(
-                        "Accept", "application/json",
-                        "Content-Type", "application/x-www-form-urlencoded"
-                )
-                .uri(URI.create(oauthTokenEndpoint))
-                .POST(BodyPublishers.ofString(
-                        "client_id=" + clientId
-                                + "&client_secret=" + clientSecret
-                                + "&grant_type=client_credentials"
-                                + "&scope=rest_assured"
-                ))
-                .build();
-        var response = httpClient.send(request, BodyHandlers.ofString());
-        var responseBody = new Gson().fromJson(response.body(), OauthTokenResponse.class);
-        return response.body();
+        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+        HttpPost request = new HttpPost(oauthTokenEndpoint);
+        request.addHeader("Accept", "application/json");
+        request.addHeader("Content-Type", "application/x-www-form-urlencoded");
+        List<NameValuePair> params = Arrays.asList(
+                new BasicNameValuePair("client_id", clientId),
+                new BasicNameValuePair("client_secret", clientSecret),
+                new BasicNameValuePair("grant_type", "client_credentials"),
+                new BasicNameValuePair("scope", "rest_assured")
+        );
+        request.setEntity(new UrlEncodedFormEntity(params));
+        CloseableHttpResponse response = httpClient.execute(request);
+        OauthTokenResponse responseBody = new Gson().fromJson(
+                EntityUtils.toString(response.getEntity()), OauthTokenResponse.class
+        );
+        response.close();
+        httpClient.close();
+        return responseBody.access_token;
     }
 
     private Properties getProperties(String fileName) throws IOException {
-        var properties = new Properties();
+        Properties properties = new Properties();
         InputStream in = getClass().getClassLoader().getResourceAsStream(fileName);
         properties.load(in);
         return properties;
