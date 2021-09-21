@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Todos",
+  "type": "array",
+  "items": {
+      "title": "Todo",
+      "type": "object",
+      "properties": {
+          "userId": {
+              "description": "The unique identifier for a user",
+              "type": "number"
+          },
+          "id": {
+              "description": "The unique identifier for a record",
+              "type": "number"
+          },
+          "title": {
+              "type": "string"
+          },
+          "completed": {
+              "type": "boolean"
+          }
+      },
+      "required": ["userId", "id", "title", "completed"]
+  }
+}
